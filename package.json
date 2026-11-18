@@ -9,5 +9,8 @@
     "start": "npm run build --prefix client && node server/index.js",
     "server": "node server/index.js",
     "client": "npm run dev --prefix client"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.9"
   }
 }

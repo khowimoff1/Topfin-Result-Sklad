@@ -1,8 +1,9 @@
 // Sklad Excel faylini o'qib, saytga kerakli ixcham ko'rinishga keltiradi.
 // Kerakli listlar: Остатка (nomenklatura), Списание (chiqim), Приход (kirim), Возврат (qaytarish).
-const path = require('path');
-const XLSX = require('xlsx');
-const { placeFromFileName } = require('./places');
+// Brauzerda ham, Node.js serverda ham ishlaydi: XLSX (SheetJS) kutubxonasi tashqaridan beriladi.
+import { placeFromFileName } from './places.mjs';
+
+let XLSX = null;
 
 const norm = (v) => String(v ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
 const clean = (v) => (v === null || v === undefined ? '' : String(v).replace(/\s+/g, ' ').trim());
@@ -64,15 +65,17 @@ const unitFix = (u) => {
   return l;
 };
 
-function warehouseFromFileName(fileName) {
-  const base = path.basename(fileName).replace(/.[^.]+$/, '');
+const baseName = (f) => String(f).split(/[\\/]/).pop();
+
+export function warehouseFromFileName(fileName) {
+  const base = baseName(fileName).replace(/\.[^.]+$/, '');
   const { code, name } = placeFromFileName(base);
   return { code, name: name || code || base };
 }
 
-function parseWorkbook(filePath, displayName) {
-  const wb = XLSX.readFile(filePath, { cellDates: false });
-  const fileName = displayName || path.basename(filePath);
+// xlsx — SheetJS kutubxonasi, wb — o'qilgan kitob (XLSX.read / XLSX.readFile), fileName — asl fayl nomi
+export function parseWorkbook(xlsx, wb, fileName) {
+  XLSX = xlsx;
   const warnings = [];
 
   const wsStock = findSheet(wb, 'остат');
@@ -284,4 +287,3 @@ function parseWorkbook(filePath, displayName) {
   };
 }
 
-module.exports = { parseWorkbook, warehouseFromFileName };

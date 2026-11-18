@@ -1471,3 +1471,39 @@ tr.row-over td:first-child {
 .upd-ago {
   color: var(--muted);
 }
+.alert-info {
+  background: #f2f7fd;
+  border-color: #c9dcf5;
+  color: #1c4f8f;
+}
+.splash-pw {
+  display: flex;
+  gap: 8px;
+  width: min(360px, 100%);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.splash-pw input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0 12px;
+  font-size: 15px;
+  background: #fff;
+}
+.splash-pw input:focus {
+  outline: 2px solid rgba(21, 191, 129, 0.25);
+  border-color: var(--brand);
+}
+.splash-pw .btn-primary {
+  background: var(--brand-dark);
+  border-color: var(--brand-dark);
+}
+.splash-pw-err {
+  width: 100%;
+  text-align: center;
+  color: var(--critical);
+  font-size: 13px;
+}

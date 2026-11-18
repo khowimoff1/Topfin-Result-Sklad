@@ -1,7 +1,7 @@
 // Sklad (obyekt) nomlari: "311 Navoiy Yambisqoq sklad", "Permesheniya Kinir sklad",
 // "TOPFIN Karasay TETRA sklad R200 2026" kabi yozuvlarni "R106 Yambisqoq" ko'rinishiga keltiradi.
-// Bu jadval client/src/lib/places.js dagi bilan bir xil bo'lishi kerak.
-const PLACES = [
+// Brauzer (client) va server ikkalasi shu faylni ishlatadi.
+export const PLACES = [
   ['R100', 'Kinr', ['kinr', 'kinir', 'кинр', 'кинир']],
   ['R101', 'Konimex', ['konimeh', 'konimex', 'konimekh', 'конимех']],
   ['R102', 'Tashkazgan', ['tashkazgan', 'toshkazgan', 'ташказган']],
@@ -26,7 +26,7 @@ const MARKER = /(^|\s)311(\s|$)|sklad|склад|permesh|перемещ|\b[RS]\d
 const tokens = (s) => String(s || '').toLowerCase().replace(/\(.*?\)/g, ' ').split(/[^a-zа-яёўқғҳ0-9']+/i).filter(Boolean);
 
 // "311 Navoiy Kinr sklad" -> { code: 'R100', name: 'Kinr' }; sklad bo'lmasa null
-function matchPlace(text, { requireMarker = true } = {}) {
+export function matchPlace(text, { requireMarker = true } = {}) {
   const s = String(text || '');
   if (requireMarker && !MARKER.test(s)) return null;
   const rest = tokens(s).filter((t) => !NOISE.test(t));
@@ -35,7 +35,7 @@ function matchPlace(text, { requireMarker = true } = {}) {
 }
 
 // Fayl nomidan sklad kodi va obyekt nomi: "TOPFIN Karasay TETRA sklad R200 2026_(ac5b6b).xlsx" -> R200, Karasay
-function placeFromFileName(base) {
+export function placeFromFileName(base) {
   const clean = base.replace(/\(.*?\)/g, ' ').replace(/[_]+/g, ' ');
   const m = clean.match(/(?:^|[^A-Za-z0-9])([RS]\d{3})(?![0-9])/i);
   const code = m ? m[1].toUpperCase() : '';
@@ -50,4 +50,3 @@ function placeFromFileName(base) {
   return { code, name };
 }
 
-module.exports = { PLACES, matchPlace, placeFromFileName };

@@ -1,0 +1,11 @@
+# Netlify: sayt client/dist dan beriladi, /api/* — netlify/functions/api.mjs
+# Ma'lumot Netlify Blobs'da saqlanadi (alohida sozlash shart emas).
+# Ixtiyoriy parol: Site configuration → Environment variables → SITE_PASSWORD
+
+[build]
+  command = "npm install --prefix client && npm run build --prefix client"
+  publish = "client/dist"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"

@@ -1,4 +1,5 @@
 import { dayList, daysBetween, monthKey, monthList, fmtDayShort, monthLabel } from './format.js';
+import { api } from './api.js';
 import { matchPlace } from './places.js';
 
 // Boshqa skladga jo'natish (ko'chirish) — haqiqiy sarf emas.
@@ -17,7 +18,7 @@ export const machineNo = (dept) => {
 };
 
 export async function fetchDb() {
-  const res = await fetch('/api/data');
+  const res = await api('/api/data');
   if (!res.ok) throw new Error(`Server javob bermadi (${res.status})`);
   return buildDb(await res.json());
 }

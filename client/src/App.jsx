@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchDb } from './lib/data.js';
+import { getPassword, PasswordError, setPassword } from './lib/api.js';
 import { fmtDate, monthEnd, monthKey, monthStart } from './lib/format.js';
 import FilterBar from './components/FilterBar.jsx';
 import Logo from './components/Logo.jsx';
@@ -48,10 +49,11 @@ const pageFromHash = () => {
 };
 
 // Ochilish ekrani: "TOPFIN RESULT", pastda chiziq to'ladi — ma'lumot yuklangach sayt ochiladi
-function Splash({ ready, error, onRetry, onDone }) {
+function Splash({ ready, error, needPassword, onRetry, onDone }) {
   const [p, setP] = useState(0);
+  const [pw, setPw] = useState('');
   useEffect(() => {
-    if (error) return undefined;
+    if (error || needPassword) return undefined;
     const t = setInterval(() => {
       setP((x) => {
         if (ready) return Math.min(100, x + 6);
@@ -59,7 +61,7 @@ function Splash({ ready, error, onRetry, onDone }) {
       });
     }, 60);
     return () => clearInterval(t);
-  }, [ready, error]);
+  }, [ready, error, needPassword]);
   useEffect(() => {
     if (p >= 100) {
       const t = setTimeout(onDone, 250);
@@ -75,9 +77,25 @@ function Splash({ ready, error, onRetry, onDone }) {
         <p>Skladlar nazorati: qoldiq, kirim-chiqim, makinalar sarfi va realizatsiya</p>
       </div>
       <div className="splash-bottom">
-        {error ? (
+        {needPassword ? (
+          <form
+            className="splash-pw"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setPassword(pw);
+              setPw('');
+              onRetry();
+            }}
+          >
+            <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Sayt paroli" autoFocus aria-label="Sayt paroli" />
+            <button className="btn btn-primary" disabled={!pw}>
+              Kirish
+            </button>
+            {needPassword === 'wrong' && <div className="splash-pw-err">Parol noto‘g‘ri, qayta kiriting</div>}
+          </form>
+        ) : error ? (
           <div className="alert alert-error">
-            <b>Server bilan aloqa yo‘q.</b> {error}. start.bat ishlab turganini tekshiring.{' '}
+            <b>Server bilan aloqa yo‘q.</b> {error}.{' '}
             <button className="btn" onClick={onRetry}>
               Qayta urinish
             </button>
@@ -99,6 +117,7 @@ export default function App() {
   const [splash, setSplash] = useState(true);
   const [db, setDb] = useState(null);
   const [error, setError] = useState('');
+  const [needPassword, setNeedPassword] = useState(false); // false | true | 'wrong'
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(pageFromHash);
   const [f, setF] = useState(null);
@@ -111,13 +130,20 @@ export default function App() {
       const next = await fetchDb();
       setDb(next);
       setError('');
+      setNeedPassword(false);
       setF((prev) => {
         if (prev && prev.wh < next.warehouses.length) return prev;
         const mk = monthKey(next.maxDate || 20260101);
         return { wh: -1, from: monthStart(mk), to: monthEnd(mk), noTransfer: false };
       });
     } catch (e) {
-      setError(e.message);
+      if (e instanceof PasswordError) {
+        // Parol kerak (yoki o'zgargan) — ochilish ekranida so'raymiz
+        setNeedPassword(getPassword() ? 'wrong' : true);
+        setPassword('');
+        setDb(null);
+        setSplash(true);
+      } else setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -149,7 +175,7 @@ export default function App() {
   const [title, subtitle] = TITLES[page];
   const empty = db && !db.warehouses.length;
 
-  if (splash) return <Splash ready={!!db} error={db ? '' : error} onRetry={load} onDone={() => setSplash(false)} />;
+  if (splash) return <Splash ready={!!db} error={db ? "" : error} needPassword={needPassword} onRetry={load} onDone={() => setSplash(false)} />;
 
   return (
     <div className="app">

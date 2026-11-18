@@ -1,6 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { fmtDateTime, fmtInt } from '../lib/format.js';
 import { Card, Updated } from '../components/ui.jsx';
+import { api, PasswordError } from '../lib/api.js';
+import { MAX_UPLOAD_BYTES } from '../../../shared/validate.mjs';
 
 export default function Files({ db, reload }) {
   const input = useRef(null);
@@ -8,6 +10,8 @@ export default function Files({ db, reload }) {
   const [drag, setDrag] = useState(false);
   const [results, setResults] = useState([]);
 
+  // Excel shu brauzerning o'zida o'qiladi, serverga faqat natija (ixcham JSON) yuboriladi.
+  // Shunday qilib katta fayllar ham (5–10 MB) internetdagi saytga sig'adi.
   const upload = async (fileList) => {
     const files = [...fileList].filter((x) => /\.(xlsx|xlsm)$/i.test(x.name));
     if (!files.length) {
@@ -15,16 +19,32 @@ export default function Files({ db, reload }) {
       return;
     }
     setBusy(true);
-    setResults([]);
+    const out = [];
+    const show = (extra) => setResults([...out, ...(extra ? [extra] : [])]);
     try {
-      const body = new FormData();
-      files.forEach((x) => body.append('files', x));
-      const res = await fetch('/api/upload', { method: 'POST', body });
-      const json = await res.json();
-      setResults(json.results || [{ file: '', ok: false, error: json.error || 'Yuklashda xato' }]);
+      const [XLSX, { parseWorkbook }] = await Promise.all([import('xlsx'), import('../../../shared/parser.mjs')]);
+      for (const file of files) {
+        try {
+          show({ file: file.name, busy: true, text: 'o‘qilmoqda…' });
+          await new Promise((r) => setTimeout(r, 30)); // yozuv ekranda ko'rinib olsin
+          const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false });
+          const warehouse = parseWorkbook(XLSX, wb, file.name);
+          show({ file: file.name, busy: true, text: 'saytga yuklanmoqda…' });
+          const body = JSON.stringify({ warehouse, size: file.size });
+          if (body.length > MAX_UPLOAD_BYTES) throw new Error(`Ma’lumot juda katta (${(body.length / 1048576).toFixed(1)} MB)`);
+          const res = await api('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json.error || `Xato (${res.status})`);
+          out.push({ file: file.name, ok: true, code: json.code, name: json.name, counts: [warehouse.out.length, warehouse.in.length] });
+        } catch (e) {
+          out.push({ file: file.name, ok: false, error: e instanceof PasswordError ? 'Parol noto‘g‘ri — sahifani yangilab, parolni qayta kiriting' : e.message });
+        }
+        show();
+      }
       await reload();
     } catch (e) {
-      setResults([{ file: '', ok: false, error: e.message }]);
+      out.push({ file: '', ok: false, error: e.message });
+      show();
     } finally {
       setBusy(false);
       if (input.current) input.current.value = '';
@@ -32,8 +52,12 @@ export default function Files({ db, reload }) {
   };
 
   const remove = async (w) => {
-    if (!window.confirm(`${w.code} ${w.name} — “${w.file}” fayli saytdan olib tashlansinmi?\n(Kompyuteringizdagi asl Excel faylga tegilmaydi.)`)) return;
-    await fetch(`/api/files/${encodeURIComponent(w.file)}`, { method: 'DELETE' });
+    if (!window.confirm(`${w.code} ${w.name} — sklad ma’lumoti saytdan olib tashlansinmi?\n(Kompyuteringizdagi asl Excel faylga tegilmaydi.)`)) return;
+    const res = await api(`/api/warehouses/${encodeURIComponent(w.code)}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      window.alert(json.error || 'O‘chirib bo‘lmadi');
+    }
     await reload();
   };
 
@@ -63,13 +87,17 @@ export default function Files({ db, reload }) {
             {busy ? 'Yuklanmoqda…' : 'Fayl tanlash'}
           </button>
           <input ref={input} type="file" accept=".xlsx,.xlsm" multiple hidden onChange={(e) => upload(e.target.files)} />
-          <small className="muted">Fayl nomi sklad kodi bilan boshlanishi kerak: “R104 Saribuloq sklad 2026.xlsx”</small>
+          <small className="muted">Fayl nomida sklad kodi bo‘lsin: “R104 Saribuloq sklad 2026.xlsx”. Fayl shu kompyuterda o‘qiladi, serverga faqat kerakli ma’lumot yuboriladi.</small>
         </div>
         {results.map((r, i) => (
-          <div key={i} className={`alert ${r.ok ? 'alert-ok' : 'alert-error'}`}>
-            {r.ok ? (
+          <div key={i} className={`alert ${r.busy ? 'alert-info' : r.ok ? 'alert-ok' : 'alert-error'}`}>
+            {r.busy ? (
               <>
-                ✓ <b>{r.file}</b> yuklandi — {r.code} {r.name}
+                ⏳ <b>{r.file}</b> — {r.text}
+              </>
+            ) : r.ok ? (
+              <>
+                ✓ <b>{r.file}</b> yuklandi — {r.code} {r.name} ({fmtInt(r.counts[0])} chiqim, {fmtInt(r.counts[1])} kirim yozuvi). Endi saytni ochgan hamma shu ma’lumotni ko‘radi.
               </>
             ) : (
               <>

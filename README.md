@@ -13,6 +13,16 @@ npm run setup
 npm start
 ```
 
+## Internetdagi versiya (Netlify)
+
+Sayt https://topfinresultsklad.netlify.app da ishlaydi. GitHub'ga yuklangan har bir o'zgarishni Netlify o'zi joylaydi.
+
+**Har kuni ertalab:** saytdagi **Fayllar** sahifasini oching va skladlarning Excel fayllarini tashlang. Fayl shu kompyuterning brauzerida o'qiladi, serverga faqat kerakli ma'lumot yuboriladi va Netlify xotirasida (Netlify Blobs) doimiy saqlanadi. Shundan keyin saytni ochgan har kim (telefon yoki kompyuterdan) shu ma'lumotni ko'radi. O'sha sklad faylini keyinroq qayta yuklasangiz, eskisi almashtiriladi.
+
+**Parol (ixtiyoriy):** Netlify → Site configuration → Environment variables → `SITE_PASSWORD` qo'shing va saytni qayta joylang (Deploys → Trigger deploy). Shunda sayt ochilganda parol so'raydi. Brauzer parolni eslab qoladi. Kompyuterdagi versiyada ham `SITE_PASSWORD` muhit o'zgaruvchisi xuddi shunday ishlaydi.
+
+Tuzilishi: `netlify.toml` — Netlify sozlamalari, `netlify/functions/api.mjs` — internetdagi API, `shared/` — brauzer va server uchun umumiy kod (Excel o'qish, tekshirish).
+
 ## Ochilish
 
 Sayt ochilganda "TOPFIN RESULT" ekrani chiqadi, pastdagi chiziq to'lgach (Excel fayllar o'qilgach) sayt o'zi ochiladi. Login va parol yo'q.
@@ -46,7 +56,9 @@ Sanasi yo'q yoki miqdori son bo'lmagan qatorlar hisobga olinmaydi (Excel'da ham 
 
 ## Tuzilishi
 
-- `server/` — Node.js (Express): Excel o'qish (`parser.js`) va API (`index.js`)
+- `server/` — kompyuterdagi Node.js (Express) server (`index.js`)
+- `shared/` — Excel o'qish (`parser.mjs`), sklad nomlari (`places.mjs`), yuklashni tekshirish (`validate.mjs`)
+- `netlify/functions/` — internetdagi API
 - `client/` — React (Vite) sayt
 - `data/` — Excel fayllar
 
