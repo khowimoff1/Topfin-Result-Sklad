@@ -1,0 +1,13 @@
+{
+  "name": "sklad-sayt",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sklad nazorati — Excel fayllar asosida (React + Node.js)",
+  "scripts": {
+    "setup": "npm install --prefix server && npm install --prefix client",
+    "build": "npm run build --prefix client",
+    "start": "npm run build --prefix client && node server/index.js",
+    "server": "node server/index.js",
+    "client": "npm run dev --prefix client"
+  }
+}

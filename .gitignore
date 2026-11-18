@@ -1,0 +1,19 @@
+# Paketlar va yig'ilgan sayt (npm run setup / npm run build qayta yaratadi)
+node_modules/
+client/dist/
+
+# Excel sklad fayllari — kompaniyaning ichki ma'lumoti, GitHub'ga yuklanmaydi
+data/*
+!data/.gitkeep
+
+# Excel ochiq turganda paydo bo'ladigan vaqtinchalik fayllar
+~$*
+
+# Tizim va muharrir fayllari
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+.env
+.env.*
