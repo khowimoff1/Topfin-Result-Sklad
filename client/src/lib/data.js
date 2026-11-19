@@ -135,6 +135,7 @@ export function buildDb({ warehouses, errors }) {
       source: w.source || '',
       uploader: w.uploader || '',
       chat: w.chat || '',
+      postedAt: w.postedAt || 0,
       size: w.size,
       warnings: w.warnings || [],
       lastOut,

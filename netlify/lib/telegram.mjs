@@ -27,6 +27,12 @@ export const parseChats = (s) =>
 
 const fmt = (d) => (d ? `${String(d % 100).padStart(2, '0')}.${String(Math.floor(d / 100) % 100).padStart(2, '0')}.${Math.floor(d / 10000)}` : '—');
 const n = (x) => new Intl.NumberFormat('ru-RU').format(x);
+// Toshkent vaqti bilan: 16.11.2026 09:42
+const fmtTime = (ms) => {
+  const d = new Date(ms + 5 * 3600 * 1000);
+  const p = (x) => String(x).padStart(2, '0');
+  return `${p(d.getUTCDate())}.${p(d.getUTCMonth() + 1)}.${d.getUTCFullYear()} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+};
 const isGroup = (chat) => chat && chat.type !== 'private';
 const chatTitle = (chat) => cleanLabel(chat.title || [chat.first_name, chat.last_name].filter(Boolean).join(' ') || chat.username || String(chat.id));
 
@@ -221,11 +227,34 @@ export async function handleUpdate(update, { token, chats: envChats, fetchImpl, 
     const last = dataLastDate(w);
     const prev = await readJson(store, `wh/${w.code}`, null);
     const prevLast = prev ? dataLastDate(prev) : 0;
-    const who = cleanLabel([msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(' ') || msg.chat.title || 'Telegram');
+
+    // Fayl asl qachon tashlangan: forward qilingan bo'lsa — guruhdagi asl vaqti, aks holda xabar vaqti.
+    // Har bir sklad uchun eng OXIRGI tashlangan versiya qoladi — eskirog'i yangisining ustiga yozilmaydi
+    // (eski fayllarni istalgan tartibda forward qilsa ham to'g'ri ishlaydi).
+    const origin = msg.forward_origin;
+    const postedAt = (origin?.date || msg.forward_date || msg.date || Math.floor(Date.now() / 1000)) * 1000;
+    const prevPosted = prev ? prev.postedAt || prev.updatedAt || 0 : 0;
+    if (prev && postedAt < prevPosted) {
+      await reply(`⏭ ${w.code} ${w.name}: saytda yangiroq versiya bor (${fmtTime(prevPosted)} da tashlangan). Bu fayl (${fmtTime(postedAt)}) o‘tkazib yuborildi.`);
+      return;
+    }
+
+    const originName =
+      origin?.type === 'user'
+        ? [origin.sender_user?.first_name, origin.sender_user?.last_name].filter(Boolean).join(' ')
+        : origin?.type === 'hidden_user'
+          ? origin.sender_user_name
+          : origin?.type === 'chat'
+            ? origin.sender_chat?.title
+            : origin?.type === 'channel'
+              ? origin.chat?.title
+              : '';
+    const who = cleanLabel(originName || [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(' ') || msg.chat.title || 'Telegram');
     await store.setJSON(`wh/${w.code}`, {
       ...w,
       size: doc.file_size || bytes.length,
       updatedAt: Date.now(),
+      postedAt,
       source: 'telegram',
       uploader: who,
       chat: group ? chatTitle(msg.chat) : '',

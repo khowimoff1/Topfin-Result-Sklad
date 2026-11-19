@@ -96,7 +96,7 @@ export async function handle(req, deps) {
     }
     try {
       const w = validateWarehouse(body && body.warehouse);
-      await store.setJSON(`wh/${w.code}`, { ...w, size: Number(body.size) || 0, updatedAt: Date.now(), source: 'site', uploader: cleanLabel(body.uploader || 'Sayt') });
+      await store.setJSON(`wh/${w.code}`, { ...w, size: Number(body.size) || 0, updatedAt: Date.now(), postedAt: Date.now(), source: 'site', uploader: cleanLabel(body.uploader || 'Sayt') });
       return json(200, { ok: true, code: w.code, name: w.name });
     } catch (e) {
       return json(400, { error: e.message });
@@ -146,7 +146,7 @@ export async function handle(req, deps) {
     try {
       const hook = `${url.origin}/api/telegram`;
       if (isSetup) {
-        await tg.call('setWebhook', { url: hook, secret_token: webhookSecret(token), allowed_updates: ALLOWED_UPDATES, max_connections: 5 });
+        await tg.call('setWebhook', { url: hook, secret_token: webhookSecret(token), allowed_updates: ALLOWED_UPDATES, max_connections: 1 }); // fayllar navbat bilan — bir skladning ikki versiyasi bir vaqtda yozilmasin
       }
       const [me, info] = await Promise.all([tg.call('getMe'), tg.call('getWebhookInfo')]);
       const updates = Array.isArray(info.allowed_updates) ? info.allowed_updates : null;
@@ -156,7 +156,7 @@ export async function handle(req, deps) {
         canReadGroups: !!me.can_read_all_group_messages,
         webhook: info.url === hook,
         webhookUrl: info.url && info.url !== hook ? '(boshqa manzil)' : '',
-        needsReconnect: info.url === hook && !!updates && !ALLOWED_UPDATES.every((u) => updates.includes(u)),
+        needsReconnect: info.url === hook && ((!!updates && !ALLOWED_UPDATES.every((u) => updates.includes(u))) || (info.max_connections || 40) !== 1),
         queue: info.pending_update_count || 0,
         lastError: info.last_error_message || '',
         lastErrorDate: info.last_error_date || 0,

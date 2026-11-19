@@ -131,7 +131,7 @@ app.get('/api/telegram/status', (req, res) => res.json({ available: false }));
 app.post('/api/upload', requireAdmin, express.json({ limit: MAX_UPLOAD_BYTES }), (req, res) => {
   try {
     const w = validateWarehouse(req.body && req.body.warehouse);
-    const saved = { ...w, size: Number(req.body.size) || 0, updatedAt: Date.now(), source: 'site', uploader: cleanLabel(req.body.uploader || 'Sayt') };
+    const saved = { ...w, size: Number(req.body.size) || 0, updatedAt: Date.now(), postedAt: Date.now(), source: 'site', uploader: cleanLabel(req.body.uploader || 'Sayt') };
     const name = `${w.code}.json`;
     fs.writeFileSync(path.join(DATA_DIR, name), JSON.stringify(saved));
     removeCode(w.code, name);

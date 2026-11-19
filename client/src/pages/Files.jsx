@@ -227,6 +227,11 @@ function TelegramCard({ ensureAdmin, onChanged }) {
         Guruhga tashlangan har bir sklad Excel fayli o‘sha skladni saytda jimgina yangilaydi — bot guruhga hech narsa yozmaydi. Kim va qaysi guruhdan
         yuborgani pastdagi jadvalda “Qayerdan” ustunida ko‘rinadi. Botga shaxsiy yozsangiz, u javob beradi. Fayl 20 MB dan oshmasin.
       </p>
+      <div className="alert alert-info">
+        <b>Bot qo‘shilishidan oldingi fayllar:</b> Telegram botlarga guruhning eski xabarlarini o‘qishga ruxsat bermaydi. So‘nggi kunlardagi sklad
+        fayllarini guruhda belgilab, botga <b>Переслать / Forward</b> qiling (bir yo‘la bir nechtasini ham bo‘ladi). Bot har bir faylning guruhga{' '}
+        <b>asl tashlangan vaqtiga</b> qaraydi: har bir sklad uchun eng oxirgi tashlangani qoladi, eskiroqlari o‘tkazib yuboriladi — tartib muhim emas.
+      </div>
     </Card>
   );
 }
@@ -406,7 +411,7 @@ export default function Files({ db, reload }) {
                 <th>Fayl</th>
                 <th title="Приход va Списание listlaridagi oxirgi sana">Yangilangan</th>
                 <th>Qayerdan</th>
-                <th>Fayl yuklangan</th>
+                <th title="Telegram: guruhga asl tashlangan vaqti; sayt: yuklangan vaqti">Fayl vaqti</th>
                 <th className="num">Materiallar</th>
                 <th className="num">Chiqim</th>
                 <th className="num">Kirim</th>
@@ -432,7 +437,7 @@ export default function Files({ db, reload }) {
                     <Updated w={w} long />
                   </td>
                   <td>{source(w)}</td>
-                  <td className="muted">{fmtDateTime(w.updatedAt)}</td>
+                  <td className="muted">{fmtDateTime(w.postedAt || w.updatedAt)}</td>
                   <td className="num">{fmtInt(w.counts.items)}</td>
                   <td className="num">{fmtInt(w.counts.out)}</td>
                   <td className="num">{fmtInt(w.counts.in)}</td>
