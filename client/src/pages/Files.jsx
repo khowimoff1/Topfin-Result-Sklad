@@ -35,9 +35,9 @@ function AdminPrompt({ onSubmit, onCancel, error, busy }) {
 }
 
 // Telegram bot holati va sozlash yo'riqnomasi
-function TelegramCard({ ensureAdmin }) {
+function TelegramCard({ ensureAdmin, onChanged }) {
   const [st, setSt] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState('');
 
   const load = useCallback(async () => {
@@ -54,74 +54,149 @@ function TelegramCard({ ensureAdmin }) {
 
   if (!st || !st.available) return null; // kompyuterdagi versiyada bot yo'q
 
-  const connect = async () => {
+  // Admin amali: parol so'raladi, so'ng so'rov yuboriladi va holat yangilanadi
+  const adminAction = async (key, path, body, okText) => {
     setMsg('');
     const pw = await ensureAdmin();
     if (pw === null) return;
-    setBusy(true);
+    setBusy(key);
     try {
-      const res = await adminApi('/api/telegram/setup', { method: 'POST' }, pw);
+      const res = await adminApi(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }, pw);
       const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || `Xato (${res.status})`);
       setSt(j);
-      setMsg(j.error ? `⚠ ${j.error}` : j.webhook ? '✓ Bot ulandi. Endi unga Excel yuborsangiz, saytga joylanadi.' : '⚠ Ulab bo‘lmadi');
+      setMsg(j.error ? `⚠ ${j.error}` : `✓ ${okText}`);
+      onChanged?.();
     } catch (e) {
       setMsg(`⚠ ${e.message}`);
     } finally {
-      setBusy(false);
+      setBusy('');
     }
   };
 
-  const ok = st.configured && st.webhook && st.chats > 0 && !st.error;
+  const connect = () => adminAction('connect', '/api/telegram/setup', {}, 'Bot ulandi.');
+  const allow = (c, on) =>
+    adminAction(`chat${c.id}`, '/api/telegram/chats', { id: c.id, title: c.title, type: c.type, allow: on }, on ? `“${c.title || c.id}” ga ruxsat berildi — bot u yerga xabar yozdi.` : `“${c.title || c.id}” olib tashlandi.`);
+
+  const allowed = st.allowed || [];
+  const pending = st.pending || [];
+  const ok = st.configured && st.webhook && allowed.length > 0 && !st.error;
+  const typeLabel = (t) => (t === 'private' ? 'shaxsiy' : t === 'channel' ? 'kanal' : t ? 'guruh' : '');
+
   return (
     <Card
       title="Telegram'dan avtomatik yuklash"
       sub={
         ok ? (
           <>
-            ✅ Bot ishlayapti: <b>@{st.username}</b> · {st.chats} ta chatdan fayl qabul qilinadi
+            ✅ Bot ishlayapti: <b>@{st.username}</b> · {allowed.length} ta chatdan fayl qabul qilinadi
           </>
         ) : (
-          'Telegram botga Excel yuborilsa, u o‘zi saytga joylanadi'
+          'Telegram botga yoki bot qo‘shilgan guruhga Excel tashlansa, u o‘zi saytga joylanadi'
         )
       }
       actions={
         st.configured && (
-          <button className="btn" onClick={connect} disabled={busy}>
-            {busy ? 'Ulanmoqda…' : st.webhook ? '↻ Qayta ulash' : 'Botni ulash'}
+          <button className="btn" onClick={connect} disabled={!!busy}>
+            {busy === 'connect' ? 'Ulanmoqda…' : st.webhook ? '↻ Qayta ulash' : 'Botni ulash'}
           </button>
         )
       }
     >
       {msg && <div className={`alert ${msg.startsWith('✓') ? 'alert-ok' : 'alert-error'}`}>{msg}</div>}
       {st.error && <div className="alert alert-error">⚠ Telegram: {st.error}</div>}
+      {st.needsReconnect && (
+        <div className="alert alert-info">
+          ℹ Yangi imkoniyat (bot guruhga qo‘shilganini sezishi) uchun bir marta <b>«↻ Qayta ulash»</b> ni bosing.
+        </div>
+      )}
       {st.lastError && (
         <div className="alert alert-error">
           ⚠ Oxirgi xato ({fmtDateTime(st.lastErrorDate * 1000)}): {st.lastError}
         </div>
       )}
-      <ol className="tg-steps">
-        <li className={st.configured ? 'done' : ''}>
-          Telegram'da <b>@BotFather</b> → <code>/newbot</code> → bot yarating va bergan <b>token</b>ni Netlify → Site configuration → Environment
-          variables ga <code>TELEGRAM_BOT_TOKEN</code> nomi bilan qo‘shing.
-        </li>
-        <li className={st.adminSet ? 'done' : ''}>
-          Shu yerga <code>ADMIN_PASSWORD</code> ham qo‘shing — saytdan yuklash, o‘chirish va botni ulash uchun parol.
-        </li>
-        <li className={st.configured ? 'done' : ''}>
-          Netlify → Deploys → <b>Trigger deploy</b> (o‘zgaruvchilar shundan keyin ishlaydi), so‘ng shu sahifada <b>«Botni ulash»</b>ni bosing.
-        </li>
-        <li className={st.chats > 0 ? 'done' : ''}>
-          Botga (yoki bot qo‘shilgan guruhga) <code>/id</code> yozing — u chat ID ni aytadi. Shu ID larni vergul bilan <code>TELEGRAM_CHATS</code> ga
-          qo‘shing va yana Trigger deploy qiling. Boshqa chatlardan fayl qabul qilinmaydi.
-        </li>
-        <li>
-          Guruhda ishlatsangiz: @BotFather → <code>/setprivacy</code> → botingiz → <b>Disable</b> (aks holda bot guruhdagi fayllarni ko‘rmaydi) yoki botni
-          guruhga admin qiling.
-        </li>
-      </ol>
+      {st.configured && st.username && !st.canReadGroups && (
+        <div className="alert alert-info">
+          ℹ <b>Guruhda ishlashi uchun:</b> hozir bot guruhdagi fayllarni ko‘rmaydi (Telegram maxfiylik rejimi). Telegram'da <b>@BotFather</b> →{' '}
+          <code>/setprivacy</code> → <b>@{st.username}</b> → <b>Disable</b>. So‘ng botni guruhdan chiqarib, <b>qayta qo‘shing</b>. Yoki botni guruhga{' '}
+          <b>admin</b> qiling — shunda ham ko‘radi.
+        </div>
+      )}
+
+      {st.configured && (
+        <div className="tg-chats">
+          <div>
+            <h4>Fayl qabul qilinadigan chatlar</h4>
+            {allowed.length ? (
+              <ul>
+                {allowed.map((c) => (
+                  <li key={c.id}>
+                    <span>
+                      <b>{c.title || 'Nomsiz chat'}</b> <span className="muted small">{c.id}</span>
+                    </span>
+                    {c.fixed ? (
+                      <span className="muted small" title="Netlify sozlamalarida (TELEGRAM_CHATS)">
+                        Netlify’da
+                      </span>
+                    ) : (
+                      <button className="btn btn-ghost btn-danger" onClick={() => allow(c, false)} disabled={!!busy}>
+                        🔒 Olib tashlash
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted small">Hali yo‘q.</p>
+            )}
+          </div>
+          <div>
+            <h4>Ruxsat kutayotgan chatlar</h4>
+            {pending.length ? (
+              <ul>
+                {pending.map((c) => (
+                  <li key={c.id}>
+                    <span>
+                      <b>{c.title || 'Nomsiz chat'}</b> <span className="muted small">{typeLabel(c.type)} · {fmtDateTime(c.lastAt)}</span>
+                      {c.lastFile && <span className="muted small"> · {c.lastFile}</span>}
+                    </span>
+                    <button className="btn btn-primary btn-sm" onClick={() => allow(c, true)} disabled={!!busy}>
+                      {busy === `chat${c.id}` ? '…' : '🔒 ✓ Ruxsat berish'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted small">
+                Botni guruhga qo‘shing (yoki guruhda <code>/id</code> yozing) — guruh shu yerda paydo bo‘ladi. Ro‘yxatni yangilash uchun{' '}
+                <button className="link" onClick={load}>
+                  bu yerni bosing
+                </button>
+                .
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!ok && (
+        <ol className="tg-steps">
+          <li className={st.configured ? 'done' : ''}>
+            Telegram'da <b>@BotFather</b> → <code>/newbot</code> → bot yarating va <b>token</b>ni Netlify → Environment variables ga{' '}
+            <code>TELEGRAM_BOT_TOKEN</code> nomi bilan qo‘shing.
+          </li>
+          <li className={st.adminSet ? 'done' : ''}>
+            U yerga <code>ADMIN_PASSWORD</code> ham qo‘shing va <b>Trigger deploy</b> qiling.
+          </li>
+          <li className={st.webhook ? 'done' : ''}>
+            Shu yerda <b>«Botni ulash»</b> ni bosing.
+          </li>
+          <li className={allowed.length ? 'done' : ''}>Botni guruhga qo‘shing va yuqorida guruh uchun «Ruxsat berish» ni bosing.</li>
+        </ol>
+      )}
       <p className="muted small">
-        Bot faylni olgach, o‘sha sklad kodidagi eski ma’lumotni almashtiradi va chatga “✅ R104 Saribuloq saytga joylandi” deb javob yozadi. Fayl 20 MB dan
-        oshmasin.
+        Guruhga tashlangan har bir sklad Excel fayli o‘sha skladni saytda yangilaydi va bot “✅ R104 Saribuloq saytda yangilandi” deb javob yozadi. Sklad fayli
+        bo‘lmagan boshqa Excel'larga bot guruhda javob bermaydi. Fayl 20 MB dan oshmasin.
       </p>
     </Card>
   );
@@ -235,7 +310,7 @@ export default function Files({ db, reload }) {
   const source = (w) =>
     w.source === 'telegram' ? (
       <span className="src src-tg" title="Telegram bot orqali">
-        ✈ Telegram{w.uploader && w.uploader !== 'Telegram' ? ` · ${w.uploader}` : ''}
+        ✈ Telegram{w.uploader && w.uploader !== 'Telegram' ? ` · ${w.uploader}` : ''}{w.chat ? ` · ${w.chat}` : ''}
       </span>
     ) : w.source === 'folder' ? (
       <span className="src" title="Kompyuterdagi data/ papkasidan">📁 Papka</span>
@@ -291,7 +366,7 @@ export default function Files({ db, reload }) {
         ))}
       </Card>
 
-      <TelegramCard ensureAdmin={ensureAdmin} />
+      <TelegramCard ensureAdmin={ensureAdmin} onChanged={reload} />
 
       <Card title="Yuklangan skladlar" sub={`${db.warehouses.length} ta fayl`} pad={false}>
         <div className="dt-scroll">

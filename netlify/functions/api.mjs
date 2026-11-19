@@ -6,6 +6,7 @@
 //   POST   /api/telegram            — Telegram bot webhook (Excel fayl kelganda)
 //   GET    /api/telegram/status     — bot ulanganmi
 //   POST   /api/telegram/setup      — botni ulash (webhook o'rnatish)                        [admin]
+//   POST   /api/telegram/chats      — chatga (guruhga) ruxsat berish / olib tashlash          [admin]
 //
 // Ma'lumot Netlify Blobs'da ("sklad" xotirasi, kalit: wh/R104) doimiy saqlanadi.
 // Netlify → Environment variables:
@@ -17,7 +18,7 @@ import { getStore } from '@netlify/blobs';
 import * as XLSX from 'xlsx';
 import { parseWorkbook } from '../../shared/parser.mjs';
 import { MAX_UPLOAD_BYTES, adminCheck, cleanLabel, passwordOk, validateWarehouse } from '../../shared/validate.mjs';
-import { handleUpdate, parseChats, telegramApi, webhookSecret } from '../lib/telegram.mjs';
+import { ALLOWED_UPDATES, handleUpdate, listChats, parseChats, setAllowed, telegramApi, webhookSecret } from '../lib/telegram.mjs';
 
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -113,30 +114,50 @@ export async function handle(req, deps) {
     return json(200, { ok: true });
   }
 
-  // --- Telegram bot holati va ulash
-  if (p === '/api/telegram/status' || p === '/api/telegram/setup') {
+  // --- Telegram bot: holat, ulash, chatlarga ruxsat
+  if (p === '/api/telegram/status' || p === '/api/telegram/setup' || p === '/api/telegram/chats') {
     const { token, chats } = deps.telegram;
-    if (req.method === 'POST' && p === '/api/telegram/setup') {
+    const isStatus = req.method === 'GET' && p === '/api/telegram/status';
+    const isSetup = req.method === 'POST' && p === '/api/telegram/setup';
+    const isChats = req.method === 'POST' && p === '/api/telegram/chats';
+    if (!isStatus && !isSetup && !isChats) return json(404, { error: 'Topilmadi' });
+    if (isSetup || isChats) {
       const denied = admin();
       if (denied) return denied;
-    } else if (req.method !== 'GET' || p !== '/api/telegram/status') {
-      return json(404, { error: 'Topilmadi' });
     }
-    const base = { available: true, configured: !!token, chats: chats.length, adminSet: !!adminPassword };
+
+    // Chatga ruxsat berish / olib tashlash: { id, title, allow }
+    if (isChats) {
+      const body = await req.json().catch(() => ({}));
+      const id = String(body.id || '');
+      if (!/^-?\d{1,20}$/.test(id)) return json(400, { error: 'Chat ID noto‘g‘ri' });
+      if (!body.allow && chats.includes(id)) return json(400, { error: 'Bu chat Netlify sozlamalarida (TELEGRAM_CHATS) — uni o‘sha yerdan olib tashlang' });
+      await setAllowed(store, { id, title: cleanLabel(body.title || id), type: body.type || '' }, !!body.allow);
+      if (body.allow && token) {
+        const tg = telegramApi(token, deps.fetch);
+        await tg.call('sendMessage', { chat_id: id, text: '✅ Ruxsat berildi. Endi shu yerga tashlangan sklad Excel fayllari avtomatik saytga joylanadi.' }).catch(() => {});
+      }
+    }
+
+    const lists = await listChats(store, chats);
+    const base = { available: true, configured: !!token, chats: lists.allowed.length, allowed: lists.allowed, pending: lists.pending, adminSet: !!adminPassword };
     if (!token) return json(200, base);
     const tg = telegramApi(token, deps.fetch);
     try {
       const hook = `${url.origin}/api/telegram`;
-      if (req.method === 'POST') {
-        await tg.call('setWebhook', { url: hook, secret_token: webhookSecret(token), allowed_updates: ['message', 'channel_post'], max_connections: 5 });
+      if (isSetup) {
+        await tg.call('setWebhook', { url: hook, secret_token: webhookSecret(token), allowed_updates: ALLOWED_UPDATES, max_connections: 5 });
       }
       const [me, info] = await Promise.all([tg.call('getMe'), tg.call('getWebhookInfo')]);
+      const updates = Array.isArray(info.allowed_updates) ? info.allowed_updates : null;
       return json(200, {
         ...base,
         username: me.username,
+        canReadGroups: !!me.can_read_all_group_messages,
         webhook: info.url === hook,
-        webhookUrl: info.url ? '(boshqa manzil)' : '',
-        pending: info.pending_update_count || 0,
+        webhookUrl: info.url && info.url !== hook ? '(boshqa manzil)' : '',
+        needsReconnect: info.url === hook && !!updates && !ALLOWED_UPDATES.every((u) => updates.includes(u)),
+        queue: info.pending_update_count || 0,
         lastError: info.last_error_message || '',
         lastErrorDate: info.last_error_date || 0,
       });
