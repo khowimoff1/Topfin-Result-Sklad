@@ -90,7 +90,7 @@ export default function SupplierDrawer({ db, f, supplier, onClose, openItem }) {
   const itemCols = useMemo(
     () => [
       { key: 'name', title: 'Material', value: (g) => g.item.name, render: (g) => <span className="item-name">{g.item.name}</span> },
-      { key: 'code', title: 'Kod', value: (g) => g.item.code, render: (g) => <span className="code">{g.item.code}</span> },
+      { key: 'code', hideMobile: true, title: 'Kod', value: (g) => g.item.code, render: (g) => <span className="code">{g.item.code}</span> },
       { key: 'qty', title: 'Jami keldi', align: 'right', value: (g) => g.qty, render: (g) => <Qty v={g.qty} unit={g.item.unit} strong /> },
       { key: 'unit', title: 'Birlik', value: (g) => g.item.unit, exportOnly: true },
       { key: 'count', title: 'Necha marta', align: 'right', value: (g) => g.count },

@@ -49,7 +49,7 @@ export default function Usage({ db, f, openItem }) {
 
   const columns = useMemo(() => {
     const cols = [
-      { key: 'code', title: 'Kod', value: (r) => r.item.code, render: (r) => <span className="code">{r.item.code}</span>, width: 108 },
+      { key: 'code', hideMobile: true, title: 'Kod', value: (r) => r.item.code, render: (r) => <span className="code">{r.item.code}</span>, width: 108 },
       { key: 'name', title: 'Nomi', value: (r) => r.item.name, render: (r) => <span className="item-name">{r.item.name}</span>, sticky: true },
       { key: 'unit', title: 'Birlik', value: (r) => r.item.unit, exportOnly: true },
     ];

@@ -163,9 +163,11 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
+  const [menuOpen, setMenuOpen] = useState(false); // telefondagi menyu
   const go = useCallback((id) => {
     window.location.hash = id;
     setPage(id);
+    setMenuOpen(false);
     window.scrollTo(0, 0);
   }, []);
 
@@ -181,12 +183,17 @@ export default function App() {
 
   return (
     <div className="app">
-      <aside className="side">
+      <aside className={`side ${menuOpen ? 'menu-open' : ''}`}>
         <div className="brand">
           <div className="brand-logo">
             <Logo variant="dark" />
           </div>
           <small>{db ? `Sklad nazorati · ${db.warehouses.length} ta sklad` : 'Sklad nazorati'}</small>
+          {/* Faqat telefonda: hozirgi bo'lim nomi va menyu tugmasi */}
+          <span className="m-current">{NAV.find((n) => n.id === page)?.label}</span>
+          <button className="menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? 'Menyuni yopish' : 'Menyuni ochish'} aria-expanded={menuOpen}>
+            {menuOpen ? '✕' : '☰'}
+          </button>
         </div>
         <nav>
           {NAV.map((n) => (

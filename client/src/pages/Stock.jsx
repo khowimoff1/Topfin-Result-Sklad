@@ -77,9 +77,9 @@ export default function Stock({ db, f, openItem, stockStatus, setStockStatus }) 
 
   const columns = useMemo(() => {
     const cols = [
-      { key: 'code', title: 'Kod', value: (r) => r.item.code, render: (r) => <span className="code">{r.item.code}</span>, width: 108 },
+      { key: 'code', hideMobile: true, title: 'Kod', value: (r) => r.item.code, render: (r) => <span className="code">{r.item.code}</span>, width: 108 },
       { key: 'name', title: 'Nomi', value: (r) => r.item.name, render: (r) => <span className="item-name">{r.item.name}</span>, sticky: true },
-      { key: 'cat', title: 'Kategoriya', value: (r) => r.item.category, render: (r) => <span className="muted">{r.item.category}</span> },
+      { key: 'cat', hideMobile: true, title: 'Kategoriya', value: (r) => r.item.category, render: (r) => <span className="muted">{r.item.category}</span> },
       { key: 'unit', title: 'Birlik', value: (r) => r.item.unit, exportOnly: true },
     ];
     if (view === 'period') {

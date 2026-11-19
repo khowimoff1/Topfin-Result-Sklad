@@ -61,7 +61,7 @@ export default function DataTable({ columns: allColumns, rows, pageSize = 50, on
               {columns.map((c) => (
                 <th
                   key={c.key}
-                  className={`${c.align === 'right' ? 'num' : ''} ${c.sticky ? 'sticky-col' : ''} ${c.noSort ? '' : 'sortable'}`}
+                  className={`${c.align === 'right' ? 'num' : ''} ${c.sticky ? 'sticky-col' : ''} ${c.noSort ? '' : 'sortable'} ${c.hideMobile ? 'hide-m' : ''}`}
                   style={c.width ? { width: c.width, minWidth: c.width } : undefined}
                   onClick={() => toggle(c)}
                   title={c.hint}
@@ -74,7 +74,7 @@ export default function DataTable({ columns: allColumns, rows, pageSize = 50, on
             {columns.some((c) => c.filter) && (
               <tr className="filter-row">
                 {columns.map((c) => (
-                  <th key={c.key} className={c.sticky ? 'sticky-col' : ''}>
+                  <th key={c.key} className={`${c.sticky ? 'sticky-col' : ''} ${c.hideMobile ? 'hide-m' : ''}`}>
                     {c.filter && (
                       <select
                         className={`col-filter ${c.filter.value && c.filter.value !== '0' ? 'active' : ''}`}
@@ -98,7 +98,7 @@ export default function DataTable({ columns: allColumns, rows, pageSize = 50, on
             {slice.map((r, i) => (
               <tr key={r._key ?? cur * pageSize + i} className={`${onRowClick ? 'clickable' : ''} ${rowClass ? rowClass(r) : ''}`} onClick={onRowClick ? () => onRowClick(r) : undefined}>
                 {columns.map((c) => (
-                  <td key={c.key} className={`${c.align === 'right' ? 'num' : ''} ${c.sticky ? 'sticky-col' : ''} ${c.cellClass ? c.cellClass(r) : ''}`}>
+                  <td key={c.key} className={`${c.align === 'right' ? 'num' : ''} ${c.sticky ? 'sticky-col' : ''} ${c.cellClass ? c.cellClass(r) : ''} ${c.hideMobile ? 'hide-m' : ''}`}>
                     {c.render ? c.render(r) : c.value ? c.value(r) : r[c.key]}
                   </td>
                 ))}

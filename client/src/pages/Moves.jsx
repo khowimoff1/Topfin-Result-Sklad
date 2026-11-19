@@ -67,7 +67,7 @@ export default function Moves({ type, db, f, openItem, openSupplier }) {
       cols.push({ key: 'w', title: 'Sklad', value: (r) => db.warehouses[r.w].code, render: (r) => <span className="wh-chip">{db.warehouses[r.w].code}</span> });
     }
     cols.push(
-      { key: 'code', title: 'Kod', value: (r) => db.items[r.i].code, render: (r) => <span className="code">{db.items[r.i].code}</span>, width: 108 },
+      { key: 'code', hideMobile: true, title: 'Kod', value: (r) => db.items[r.i].code, render: (r) => <span className="code">{db.items[r.i].code}</span>, width: 108 },
       { key: 'name', title: 'Nomi', value: (r) => db.items[r.i].name, render: (r) => <span className="item-name">{db.items[r.i].name}</span> },
       { key: 'q', title: 'Miqdor', align: 'right', value: (r) => r.q, render: (r) => <Qty v={r.q} unit={db.items[r.i].unit} strong /> },
       { key: 'unit', title: 'Birlik', value: (r) => db.items[r.i].unit, exportOnly: true }
