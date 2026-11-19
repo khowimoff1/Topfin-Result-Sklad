@@ -1585,3 +1585,21 @@ tr.row-over td:first-child {
 .sup-hint {
   margin: 6px 14px 10px;
 }
+
+/* ---------- O'ng panel aylanishi ----------
+   Panel ichi (drawer-body) o'zi aylanadi; bo'limlar siqilmaydi (aks holda pasti kesilib qolardi). */
+.drawer {
+  height: 100vh;
+  height: 100dvh;
+}
+.drawer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  grid-auto-rows: max-content;
+}
+/* Panel ochiq turganda orqadagi sahifa aylanmaydi */
+body:has(.drawer-wrap) {
+  overflow: hidden;
+}
