@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { groupQty, periodRange, timeSeries } from '../lib/data.js';
-import { fmtDate, fmtInt } from '../lib/format.js';
+import { fmtDate, fmtInt, fromIso, toIso } from '../lib/format.js';
 import { Kpi, Qty, Search, Segmented } from './ui.jsx';
 import DataTable from './DataTable.jsx';
 import TimeChart from './TimeChart.jsx';
 
 // Bitta yetkazuvchi bo'yicha: nima, qachon, qaysi obektga kelgan (o'ng tomondan ochiladigan panel)
 export default function SupplierDrawer({ db, f, supplier, onClose, openItem }) {
-  const [scope, setScope] = useState('period');
+  // Panel ichidagi sana oralig'i: boshida yuqoridagi filtr davri, keyin o'zgartirsa bo'ladi
+  const [range, setRange] = useState({ from: f.from, to: f.to });
   const [wh, setWh] = useState(-1); // panel ichida obekt bo'yicha filtr
   const [q, setQ] = useState('');
   const [view, setView] = useState('items');
@@ -18,7 +19,21 @@ export default function SupplierDrawer({ db, f, supplier, onClose, openItem }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const fx = useMemo(() => (scope === 'all' ? { ...f, from: db.minDate, to: db.maxDate } : f), [scope, f, db]);
+  const fx = useMemo(() => ({ ...f, from: range.from, to: range.to }), [range, f]);
+  const scope = range.from === f.from && range.to === f.to ? 'period' : range.from <= db.minDate && range.to >= db.maxDate ? 'all' : 'custom';
+  const setScope = (s) => setRange(s === 'all' ? { from: db.minDate, to: db.maxDate } : { from: f.from, to: f.to });
+  const setDate = (key, iso) => {
+    const d = fromIso(iso);
+    if (!d) return;
+    setRange((r) => {
+      const next = { ...r, [key]: d };
+      if (next.from > next.to) {
+        if (key === 'from') next.to = d;
+        else next.from = d;
+      }
+      return next;
+    });
+  };
   const all = useMemo(
     () => db.in.filter((r) => r.supplier === supplier && (f.wh === -1 || r.w === f.wh) && r.d >= fx.from && r.d <= fx.to),
     [db, supplier, f.wh, fx]
@@ -129,6 +144,16 @@ export default function SupplierDrawer({ db, f, supplier, onClose, openItem }) {
 
   const safe = supplier.replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 40);
 
+  // Sana oralig'i: 01.10.2026 — 11.11.2026 (butun panelga ta'sir qiladi)
+  const dateBar = (
+    <div className="sup-dates">
+      <span className="filters-label">Sana</span>
+      <input type="date" className="date" value={toIso(range.from)} min={toIso(db.minDate)} max={toIso(db.maxDate)} onChange={(e) => setDate('from', e.target.value)} aria-label="Boshlanish sanasi" />
+      <span className="muted">—</span>
+      <input type="date" className="date" value={toIso(range.to)} min={toIso(db.minDate)} max={toIso(db.maxDate)} onChange={(e) => setDate('to', e.target.value)} aria-label="Tugash sanasi" />
+    </div>
+  );
+
   return (
     <div className="drawer-wrap" onClick={onClose}>
       <aside className="drawer drawer-wide" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={supplier}>
@@ -136,7 +161,7 @@ export default function SupplierDrawer({ db, f, supplier, onClose, openItem }) {
           <div>
             <h2>{supplier}</h2>
             <p>
-              Yetkazuvchi · {scope === 'all' ? 'butun davr' : `${fmtDate(f.from)} — ${fmtDate(f.to)}`}
+              Yetkazuvchi · {scope === 'all' ? 'butun davr' : `${fmtDate(range.from)} — ${fmtDate(range.to)}`}
               {f.wh !== -1 && ` · ${db.warehouses[f.wh].code} ${db.warehouses[f.wh].name}`}
             </p>
           </div>
@@ -158,17 +183,20 @@ export default function SupplierDrawer({ db, f, supplier, onClose, openItem }) {
 
         <div className="drawer-body">
           {!all.length ? (
-            <div className="empty">
-              Bu davrda shu yetkazuvchidan kirim yo‘q.
-              {scope === 'period' && (
-                <>
-                  {' '}
-                  <button className="btn btn-ghost" onClick={() => setScope('all')}>
-                    Butun davrni ko‘rish
-                  </button>
-                </>
-              )}
-            </div>
+            <section>
+              {dateBar}
+              <div className="empty">
+                {fmtDate(range.from)} — {fmtDate(range.to)} oralig‘ida shu yetkazuvchidan kirim yo‘q.
+                {scope !== 'all' && (
+                  <>
+                    {' '}
+                    <button className="btn btn-ghost" onClick={() => setScope('all')}>
+                      Butun davrni ko‘rish
+                    </button>
+                  </>
+                )}
+              </div>
+            </section>
           ) : (
             <>
               <div className="kpis kpis-4">
@@ -218,12 +246,18 @@ export default function SupplierDrawer({ db, f, supplier, onClose, openItem }) {
                     value={view}
                     onChange={setView}
                     options={[
-                      { value: 'items', label: `Nimalar keldi (${fmtInt(items.length)})` },
-                      { value: 'rows', label: `Barcha kirimlar (${fmtInt(rows.length)})` },
+                      { value: 'items', label: `Materiallar bo‘yicha jami (${fmtInt(items.length)})`, title: 'Har bir material bir qatorda: jami qancha keldi, necha marta, qaysi obektlarga' },
+                      { value: 'rows', label: `Har bir kirim alohida (${fmtInt(rows.length)})`, title: 'Har bir kelgan yuk alohida qatorda: sana, obekt, miqdor, mashina, nakladnoy, to‘lov' },
                     ]}
                   />
+                  {dateBar}
                   <Search value={q} onChange={setQ} placeholder="Material, nakladnoy, kuryer…" />
                 </div>
+                <p className="sup-hint muted small">
+                  {view === 'items'
+                    ? `${fmtDate(range.from)} — ${fmtDate(range.to)}: har bir material bir marta — jami qancha keldi, necha marta va qaysi obektlarga.`
+                    : `${fmtDate(range.from)} — ${fmtDate(range.to)}: har bir kirim alohida qator — qaysi kuni, qaysi obektga, qancha, qaysi mashinada, nakladnoy va to‘lov.`}
+                </p>
                 {view === 'items' ? (
                   <DataTable
                     key="items"

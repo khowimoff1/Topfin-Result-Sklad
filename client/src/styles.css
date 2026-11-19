@@ -1573,3 +1573,15 @@ tr.row-over td:first-child {
 .sec-pad {
   padding: 12px 14px 0;
 }
+.sup-dates {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.drawer-body section > .sup-dates {
+  margin-bottom: 4px;
+}
+.sup-hint {
+  margin: 6px 14px 10px;
+}
