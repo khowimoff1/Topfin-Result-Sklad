@@ -50,6 +50,33 @@ export function buildDb({ warehouses, errors }) {
     return p ? { p, label: `${p.code} ${whName.get(p.code) || p.name}` } : { p: null, label: text };
   };
 
+  // Yetkazuvchi nomlari turlicha yozilgan bo'lsa ("MÜHENDİSLİK" / "MUHENDISLIK", qo'shtirnoq, katta-kichik harf)
+  // — bitta deb hisoblanadi va eng ko'p uchragan yozuvi ko'rsatiladi.
+  const supFold = (s) =>
+    s
+      .replace(/ı/g, 'i')
+      .replace(/ş/gi, 'sh')
+      .replace(/ç/gi, 'ch')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toUpperCase()
+      .replace(/[«»"'`’‘“”]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const supVariants = new Map(); // fold -> Map(variant -> count)
+  for (const w of warehouses) {
+    const n = new Array(w.suppliers.length).fill(0);
+    for (const r of w.in) n[r[3]]++;
+    w.suppliers.forEach((raw, i) => {
+      const label = placeLabel(raw).label;
+      const k = supFold(label);
+      if (!supVariants.has(k)) supVariants.set(k, new Map());
+      const m = supVariants.get(k);
+      m.set(label, (m.get(label) || 0) + n[i]);
+    });
+  }
+  const supName = new Map([...supVariants].map(([k, m]) => [k, [...m].sort((a, b) => b[1] - a[1])[0][0]]));
+
   const whs = warehouses.map((w, wi) => {
     (w.machines || []).forEach(seeMachine);
     const map = w.items.map(([code, name, unit, category, sap]) => {
@@ -80,7 +107,10 @@ export function buildDb({ warehouses, errors }) {
     let lastIn = 0;
     const deptInfo = w.depts.map(placeLabel);
     const tr = w.depts.map((d, i) => isTransfer(d, deptInfo[i].p, w.code));
-    const supLabel = w.suppliers.map((x) => placeLabel(x).label);
+    const supLabel = w.suppliers.map((x) => {
+      const label = placeLabel(x).label;
+      return supName.get(supFold(label)) || label;
+    });
     const mno = w.depts.map(seeMachine);
     for (const r of w.out) {
       see(r[0]);
@@ -197,7 +227,10 @@ export function timeSeries(db, f, gran, measure, itemIdx = null, pred = null) {
   const val = measureValue(db, measure);
   const keys = gran === 'day' ? dayList(from, to) : monthList(from, to);
   const keyOf = gran === 'day' ? (d) => d : monthKey;
-  const map = new Map(keys.map((k) => [k, { key: k, label: gran === 'day' ? fmtDayShort(k) : monthLabel(k), out: 0, in: 0, ret: 0 }]));
+  // Bir yildan ortiq bo'lsa, oy yonida yil ham yoziladi: "Yan 26"
+  const multiYear = gran === 'month' && keys.length && Math.floor(keys[0] / 100) !== Math.floor(keys[keys.length - 1] / 100);
+  const mLabel = (k) => (multiYear ? `${monthLabel(k)} ${String(Math.floor(k / 100)).slice(2)}` : monthLabel(k));
+  const map = new Map(keys.map((k) => [k, { key: k, label: gran === 'day' ? fmtDayShort(k) : mLabel(k), out: 0, in: 0, ret: 0 }]));
   const add = (rows, field, skipTransfer) => {
     for (const r of rows) {
       if (!inRange(r, f) || (itemIdx !== null && r.i !== itemIdx)) continue;

@@ -8,7 +8,8 @@ import TimeChart from '../components/TimeChart.jsx';
 const COLOR = { out: 'var(--series-out)', in: 'var(--series-in)', ret: 'var(--series-ret)' };
 
 // Chiqim / Kirim / Qaytarish yozuvlari ro'yxati
-export default function Moves({ type, db, f, openItem }) {
+export default function Moves({ type, db, f, openItem, openSupplier }) {
+  const [allParties, setAllParties] = useState(false);
   const [q, setQ] = useState('');
   const [party, setParty] = useState('');
   const [day, setDay] = useState(0); // 0 — barcha sanalar
@@ -86,7 +87,25 @@ export default function Moves({ type, db, f, openItem }) {
     }
     if (type === 'in') {
       cols.push(
-        { key: 'supplier', title: 'Yetkazuvchi', value: (r) => r.supplier, filter: partyFilter },
+        {
+          key: 'supplier',
+          title: 'Yetkazuvchi',
+          value: (r) => r.supplier,
+          filter: partyFilter,
+          // Bosilsa — shu yetkazuvchidan kelgan hamma narsa (qachon, qaysi obektga)
+          render: (r) => (
+            <button
+              className="link"
+              title="Shu yetkazuvchidan kelgan barcha tovarlar"
+              onClick={(e) => {
+                e.stopPropagation();
+                openSupplier(r.supplier);
+              }}
+            >
+              {r.supplier}
+            </button>
+          ),
+        },
         { key: 'courier', title: 'Kuryer', value: (r) => r.courier },
         { key: 'invoice', title: 'Nakladnoy', value: (r) => r.invoice },
         { key: 'pay', title: 'To‘lov', value: (r) => r.pay }
@@ -118,14 +137,26 @@ export default function Moves({ type, db, f, openItem }) {
           <TimeChart data={series} series={[type]} unit="yozuv" gran={gran} height={210} />
         </Card>
         {partyKey && (
-          <Card title={type === 'out' ? 'Eng ko‘p olganlar' : 'Asosiy yetkazuvchilar'} sub="Yozuvlar soni bo‘yicha — bosing, jadval shu bo‘yicha filtrlanadi">
-            <BarList
-              rows={parties.map((p) => ({ ...p, label: p.key }))}
-              unit="yozuv"
-              color={COLOR[type]}
-              limit={6}
-              onSelect={(r) => setParty(party === r.key ? '' : r.key)}
-            />
+          <Card
+            title={type === 'out' ? 'Eng ko‘p olganlar' : `Yetkazuvchilar (${parties.length})`}
+            sub={type === 'out' ? 'Yozuvlar soni bo‘yicha — bosing, jadval shu bo‘yicha filtrlanadi' : 'Bosing — shu yetkazuvchidan nima, qachon, qaysi obektga kelgani'}
+            actions={
+              parties.length > 6 && (
+                <button className="btn btn-ghost" onClick={() => setAllParties(!allParties)}>
+                  {allParties ? 'Kamroq' : `Hammasi (${parties.length})`}
+                </button>
+              )
+            }
+          >
+            <div className={allParties ? 'barlist-scroll' : ''}>
+              <BarList
+                rows={parties.map((p) => ({ ...p, label: p.key }))}
+                unit="yozuv"
+                color={COLOR[type]}
+                limit={allParties ? parties.length : 6}
+                onSelect={(r) => (type === 'in' ? openSupplier(r.key) : setParty(party === r.key ? '' : r.key))}
+              />
+            </div>
           </Card>
         )}
       </div>

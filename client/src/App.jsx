@@ -5,6 +5,7 @@ import { fmtDate, monthEnd, monthKey, monthStart } from './lib/format.js';
 import FilterBar from './components/FilterBar.jsx';
 import Logo from './components/Logo.jsx';
 import ItemDrawer from './components/ItemDrawer.jsx';
+import SupplierDrawer from './components/SupplierDrawer.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Stock from './pages/Stock.jsx';
 import Usage from './pages/Usage.jsx';
@@ -122,6 +123,7 @@ export default function App() {
   const [page, setPage] = useState(pageFromHash);
   const [f, setF] = useState(null);
   const [itemOpen, setItemOpen] = useState(null);
+  const [supplierOpen, setSupplierOpen] = useState(null);
   const [stockStatus, setStockStatus] = useState('pos');
 
   const load = useCallback(async () => {
@@ -168,7 +170,7 @@ export default function App() {
   }, []);
 
   const ctx = useMemo(
-    () => ({ db, f, setF, go, openItem: setItemOpen, stockStatus, setStockStatus, reload: load }),
+    () => ({ db, f, setF, go, openItem: setItemOpen, openSupplier: setSupplierOpen, stockStatus, setStockStatus, reload: load }),
     [db, f, go, stockStatus, load]
   );
 
@@ -251,6 +253,9 @@ export default function App() {
         )}
       </main>
 
+      {db && f && supplierOpen !== null && (
+        <SupplierDrawer db={db} f={f} supplier={supplierOpen} onClose={() => setSupplierOpen(null)} openItem={setItemOpen} />
+      )}
       {db && f && itemOpen !== null && <ItemDrawer db={db} f={f} itemIdx={itemOpen} onClose={() => setItemOpen(null)} />}
     </div>
   );
