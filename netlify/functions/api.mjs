@@ -46,6 +46,7 @@ export async function handle(req, deps) {
     } catch (e) {
       console.error('Telegram update xatosi:', e && e.message);
     }
+    await store.setJSON('tg/lastOk', { at: Date.now() }).catch(() => {}); // oxirgi muvaffaqiyatli ishlangan vaqt
     return json(200, { ok: true });
   }
 
@@ -154,7 +155,13 @@ export async function handle(req, deps) {
       if (isSetup) {
         await tg.call('setWebhook', { url: hook, secret_token: webhookSecret(token), allowed_updates: ALLOWED_UPDATES, max_connections: 1 }); // fayllar navbat bilan — bir skladning ikki versiyasi bir vaqtda yozilmasin
       }
-      const [me, info] = await Promise.all([tg.call('getMe'), tg.call('getWebhookInfo')]);
+      const [me, info, okRec] = await Promise.all([tg.call('getMe'), tg.call('getWebhookInfo'), store.get('tg/lastOk', { consistency: 'strong' }).catch(() => null)]);
+      let lastOk = 0;
+      try {
+        lastOk = okRec ? JSON.parse(okRec).at || 0 : 0;
+      } catch {
+        lastOk = 0;
+      }
       const updates = Array.isArray(info.allowed_updates) ? info.allowed_updates : null;
       return json(200, {
         ...base,
@@ -164,7 +171,8 @@ export async function handle(req, deps) {
         webhookUrl: info.url && info.url !== hook ? '(boshqa manzil)' : '',
         needsReconnect: info.url === hook && ((!!updates && !ALLOWED_UPDATES.every((u) => updates.includes(u))) || (info.max_connections || 40) !== 1),
         queue: info.pending_update_count || 0,
-        lastError: info.last_error_message || '',
+        // Telegram oxirgi xatoni o'chirmaydi — undan keyin muvaffaqiyatli ishlangan bo'lsa, ko'rsatmaymiz
+        lastError: info.last_error_date && info.last_error_date * 1000 > lastOk ? info.last_error_message || '' : '',
         lastErrorDate: info.last_error_date || 0,
       });
     } catch (e) {
