@@ -11,6 +11,7 @@
     "client": "npm run dev --prefix client"
   },
   "dependencies": {
-    "@netlify/blobs": "^11.1.9"
+    "@netlify/blobs": "^11.1.9",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }
 }

@@ -11,13 +11,21 @@ const express = require('express');
 const compression = require('compression');
 const XLSX = require('xlsx');
 const { parseWorkbook } = require('../shared/parser.mjs');
-const { validateWarehouse, passwordOk, MAX_UPLOAD_BYTES } = require('../shared/validate.mjs');
+const { validateWarehouse, passwordOk, adminCheck, cleanLabel, MAX_UPLOAD_BYTES } = require('../shared/validate.mjs');
 
 const PORT = process.env.PORT || 4100;
 const HOST = process.env.HOST || '127.0.0.1';
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const CLIENT_DIST = path.join(__dirname, '..', 'client', 'dist');
 const SITE_PASSWORD = process.env.SITE_PASSWORD || '';
+// Yuklash/o'chirish paroli. Kompyuterda o'rnatilmagan bo'lsa — parolsiz (sayt faqat shu kompyuterda ochiladi).
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+
+function requireAdmin(req, res, next) {
+  const r = adminCheck(ADMIN_PASSWORD, req.get('x-admin-password'), { required: false });
+  if (r === 'ok') return next();
+  res.status(401).json({ error: 'Admin paroli noto‘g‘ri', admin: true });
+}
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -115,10 +123,15 @@ app.get('/api/data', (req, res) => {
 });
 
 // Saytdan yuklash: Excel brauzerda o'qiladi, bu yerga natija (JSON) keladi
-app.post('/api/upload', express.json({ limit: MAX_UPLOAD_BYTES }), (req, res) => {
+app.get('/api/admin/check', requireAdmin, (req, res) => res.json({ ok: true, required: !!ADMIN_PASSWORD }));
+
+// Telegram bot faqat internetdagi (Netlify) versiyada ishlaydi
+app.get('/api/telegram/status', (req, res) => res.json({ available: false }));
+
+app.post('/api/upload', requireAdmin, express.json({ limit: MAX_UPLOAD_BYTES }), (req, res) => {
   try {
     const w = validateWarehouse(req.body && req.body.warehouse);
-    const saved = { ...w, size: Number(req.body.size) || 0, updatedAt: Date.now() };
+    const saved = { ...w, size: Number(req.body.size) || 0, updatedAt: Date.now(), source: 'site', uploader: cleanLabel(req.body.uploader || 'Sayt') };
     const name = `${w.code}.json`;
     fs.writeFileSync(path.join(DATA_DIR, name), JSON.stringify(saved));
     removeCode(w.code, name);
@@ -128,7 +141,7 @@ app.post('/api/upload', express.json({ limit: MAX_UPLOAD_BYTES }), (req, res) =>
   }
 });
 
-app.delete('/api/warehouses/:code', (req, res) => {
+app.delete('/api/warehouses/:code', requireAdmin, (req, res) => {
   const code = String(req.params.code).toUpperCase();
   if (!/^[A-Z]{1,3}\d{2,4}$/.test(code)) return res.status(400).json({ error: 'Sklad kodi noto‘g‘ri' });
   const n = removeCode(code, null);

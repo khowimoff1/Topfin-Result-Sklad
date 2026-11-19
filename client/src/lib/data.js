@@ -132,6 +132,8 @@ export function buildDb({ warehouses, errors }) {
       name: w.name,
       file: w.file,
       updatedAt: w.updatedAt,
+      source: w.source || '',
+      uploader: w.uploader || '',
       size: w.size,
       warnings: w.warnings || [],
       lastOut,

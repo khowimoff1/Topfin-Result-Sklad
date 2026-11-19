@@ -19,7 +19,18 @@ Sayt https://topfinresultsklad.netlify.app da ishlaydi. GitHub'ga yuklangan har 
 
 **Har kuni ertalab:** saytdagi **Fayllar** sahifasini oching va skladlarning Excel fayllarini tashlang. Fayl shu kompyuterning brauzerida o'qiladi, serverga faqat kerakli ma'lumot yuboriladi va Netlify xotirasida (Netlify Blobs) doimiy saqlanadi. Shundan keyin saytni ochgan har kim (telefon yoki kompyuterdan) shu ma'lumotni ko'radi. O'sha sklad faylini keyinroq qayta yuklasangiz, eskisi almashtiriladi.
 
-**Parol (ixtiyoriy):** Netlify → Site configuration → Environment variables → `SITE_PASSWORD` qo'shing va saytni qayta joylang (Deploys → Trigger deploy). Shunda sayt ochilganda parol so'raydi. Brauzer parolni eslab qoladi. Kompyuterdagi versiyada ham `SITE_PASSWORD` muhit o'zgaruvchisi xuddi shunday ishlaydi.
+**Parollar:** saytni ko'rish uchun parol shart emas. Fayl yuklash, o'chirish va Telegram botni ulash uchun **admin paroli** kerak: Netlify → Site configuration → Environment variables → `ADMIN_PASSWORD` qo'shing va Deploys → Trigger deploy qiling. Parol o'rnatilmaguncha internetdagi saytdan yuklab bo'lmaydi. Kompyuterdagi versiyada `ADMIN_PASSWORD` qo'yilmasa, parolsiz ishlaydi. Ixtiyoriy `SITE_PASSWORD` qo'yilsa, saytni ko'rish uchun ham parol so'raladi.
+
+## Telegram bot
+
+Botga yoki bot qo'shilgan guruhga Excel fayl yuborilsa, u avtomatik saytga joylanadi va bot «✅ R104 Saribuloq saytga joylandi» deb javob yozadi.
+
+1. Telegram'da @BotFather → `/newbot` → tokenni Netlify'ga `TELEGRAM_BOT_TOKEN` nomi bilan qo'shing.
+2. Trigger deploy qiling, saytdagi **Fayllar** sahifasida **«Botni ulash»** ni bosing.
+3. Botga yoki guruhga `/id` yozing va chiqqan chat ID'ni `TELEGRAM_CHATS` ga qo'shing (bir nechta bo'lsa vergul bilan), yana Trigger deploy qiling. Boshqa chatlardan fayl qabul qilinmaydi.
+4. Guruhda ishlatsangiz: @BotFather → `/setprivacy` → Disable yoki botni guruhga admin qiling.
+
+Fayl 20 MB dan oshmasligi kerak (Telegram cheklovi). Bot faqat internetdagi (Netlify) versiyada ishlaydi.
 
 Tuzilishi: `netlify.toml` — Netlify sozlamalari, `netlify/functions/api.mjs` — internetdagi API, `shared/` — brauzer va server uchun umumiy kod (Excel o'qish, tekshirish).
 

@@ -40,6 +40,24 @@ export function validateWarehouse(w) {
   };
 }
 
+// Fayldagi eng oxirgi sana (Приход va Списание) — eski fayl yangisining ustiga yozilmasligini tekshirish uchun
+export function dataLastDate(w) {
+  let m = 0;
+  for (const r of w.out || []) if (r[0] > m) m = r[0];
+  for (const r of w.in || []) if (r[0] > m) m = r[0];
+  return m;
+}
+
+// Kim/qayerdan yuklagani (saytda ko'rsatiladi)
+export const cleanLabel = (s, max = 80) => String(s || '').replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+
+// Yuklash va o'chirish uchun admin paroli (ADMIN_PASSWORD). Ko'rish uchun kerak emas.
+//   required — parol o'rnatilmagan bo'lsa ham yozishni taqiqlash (internetdagi versiyada shunday)
+export function adminCheck(expected, given, { required }) {
+  if (!expected) return required ? 'missing' : 'ok';
+  return passwordOk(expected, given) ? 'ok' : 'wrong';
+}
+
 // Ixtiyoriy umumiy parol: SITE_PASSWORD o'rnatilgan bo'lsa, har so'rovda "x-site-password" sarlavhasi tekshiriladi
 export function passwordOk(expected, given) {
   if (!expected) return true;
