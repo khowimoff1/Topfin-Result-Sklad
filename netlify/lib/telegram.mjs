@@ -12,6 +12,7 @@
 // Ro'yxatlar Netlify Blobs'da: tg/allowed, tg/blocked, tg/seen/<id>
 import { createHash } from 'node:crypto';
 import { cleanLabel, dataLastDate, validateWarehouse } from '../../shared/validate.mjs';
+import { readWorkbook } from '../../shared/parser.mjs';
 
 const MAX_TG_FILE = 20 * 1024 * 1024; // Telegram botlar 20 MB gacha yuklab oladi
 export const ALLOWED_UPDATES = ['message', 'channel_post', 'my_chat_member'];
@@ -92,7 +93,7 @@ export async function listChats(store, envChats) {
   };
   const known = new Set([...envChats, ...allowed.map((c) => c.id), ...blocked.map((c) => c.id)]);
   return {
-    allowed: [...envChats.map((id) => decorate({ id }, true)), ...allowed.filter((c) => !envChats.includes(c.id)).map((c) => decorate(c, false))],
+    allowed: [...envChats.map((id) => decorate({ id, title: id.startsWith('-') ? '' : 'Shaxsiy chat', type: id.startsWith('-') ? '' : 'private' }, true)), ...allowed.filter((c) => !envChats.includes(c.id)).map((c) => decorate(c, false))],
     blocked: blocked.map((c) => decorate(c, false)),
     // Ruxsat kutayotganlar — faqat notanish shaxsiy chatlar (guruhlar avtomatik qabul qilinadi)
     pending: seen.filter((s) => !known.has(s.id) && !s.left && s.type === 'private').sort((a, b) => b.lastAt - a.lastAt).slice(0, 20),
@@ -216,7 +217,7 @@ export async function handleUpdate(update, { token, chats: envChats, fetchImpl, 
   let bytes;
   try {
     bytes = await tg.download(doc.file_id);
-    const wb = XLSX.read(bytes, { type: 'array', cellDates: false });
+    const wb = readWorkbook(XLSX, bytes); // faqat kerakli listlar — tez va kam xotira
     w = validateWarehouse(parseWorkbook(XLSX, wb, name));
   } catch (e) {
     await reply(`⚠ “${name}” faylini o‘qib bo‘lmadi: ${e.message}`);

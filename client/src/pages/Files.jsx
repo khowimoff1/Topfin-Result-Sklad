@@ -292,12 +292,12 @@ export default function Files({ db, reload }) {
     const out = [];
     const show = (extra) => setResults([...out, ...(extra ? [extra] : [])]);
     try {
-      const [XLSX, { parseWorkbook }] = await Promise.all([import('xlsx'), import('../../../shared/parser.mjs')]);
+      const [XLSX, { parseWorkbook, readWorkbook }] = await Promise.all([import('xlsx'), import('../../../shared/parser.mjs')]);
       for (const file of files) {
         try {
           show({ file: file.name, busy: true, text: 'o‘qilmoqda…' });
           await new Promise((r) => setTimeout(r, 30)); // yozuv ekranda ko'rinib olsin
-          const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: false });
+          const wb = readWorkbook(XLSX, await file.arrayBuffer()); // faqat kerakli listlar — katta fayl ham tez o'qiladi
           const warehouse = parseWorkbook(XLSX, wb, file.name);
           show({ file: file.name, busy: true, text: 'saytga yuklanmoqda…' });
           const body = JSON.stringify({ warehouse, size: file.size, uploader: 'Sayt' });

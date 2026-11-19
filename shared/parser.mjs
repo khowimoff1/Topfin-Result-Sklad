@@ -73,7 +73,29 @@ export function warehouseFromFileName(fileName) {
   return { code, name: name || code || base };
 }
 
-// xlsx — SheetJS kutubxonasi, wb — o'qilgan kitob (XLSX.read / XLSX.readFile), fileName — asl fayl nomi
+// Kerakli listlar (nomining boshi bo'yicha). Qolganlari ("Сверка кунлик", "Перемещение ОС"…) o'qilmaydi.
+const NEEDED_SHEETS = ['остат', 'спис', 'приход', 'возврат', 'baza'];
+
+// Excel faylni o'qiydi — faqat kerakli listlarni. Bu juda muhim: R200 kabi faylda qo'shimcha og'ir listlar bor,
+// hammasini o'qish 15 soniya va ~1 GB xotira oladi (Netlify funksiyasi yiqiladi), faqat keraklilari — ~2 soniya.
+//   data — Uint8Array / ArrayBuffer (brauzer, Telegram) yoki Buffer (Node)
+export function readWorkbook(xlsx, data) {
+  const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : data;
+  const names = xlsx.read(bytes, { type: 'array', bookSheets: true }).SheetNames || [];
+  const sheets = names.filter((n) => NEEDED_SHEETS.some((p) => norm(n).startsWith(p)));
+  return xlsx.read(bytes, {
+    type: 'array',
+    sheets: sheets.length ? sheets : undefined,
+    dense: true,
+    cellDates: false,
+    cellText: false,
+    cellHTML: false,
+    cellNF: false,
+    cellStyles: false,
+  });
+}
+
+// xlsx — SheetJS kutubxonasi, wb — o'qilgan kitob (readWorkbook / XLSX.read), fileName — asl fayl nomi
 export function parseWorkbook(xlsx, wb, fileName) {
   XLSX = xlsx;
   const warnings = [];

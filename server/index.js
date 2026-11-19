@@ -10,7 +10,7 @@ const fs = require('fs');
 const express = require('express');
 const compression = require('compression');
 const XLSX = require('xlsx');
-const { parseWorkbook } = require('../shared/parser.mjs');
+const { parseWorkbook, readWorkbook } = require('../shared/parser.mjs');
 const { validateWarehouse, passwordOk, adminCheck, cleanLabel, MAX_UPLOAD_BYTES } = require('../shared/validate.mjs');
 
 const PORT = process.env.PORT || 4100;
@@ -47,7 +47,7 @@ function readEntry(f) {
         entry.fileSize = saved.size;
         entry.uploadedAt = saved.updatedAt;
       } else {
-        entry.parsed = { ...parseWorkbook(XLSX, XLSX.readFile(full, { cellDates: false }), f), source: 'folder' };
+        entry.parsed = { ...parseWorkbook(XLSX, readWorkbook(XLSX, fs.readFileSync(full)), f), source: 'folder' };
       }
       console.log(`  o'qildi: ${f} (${Date.now() - t} ms)`);
     } catch (e) {

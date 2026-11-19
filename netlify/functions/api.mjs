@@ -39,7 +39,13 @@ export async function handle(req, deps) {
     if (!token) return json(503, { error: 'TELEGRAM_BOT_TOKEN o‘rnatilmagan' });
     if (req.headers.get('x-telegram-bot-api-secret-token') !== webhookSecret(token)) return json(401, { error: 'Ruxsat yo‘q' });
     const update = await req.json().catch(() => null);
-    await handleUpdate(update, { token, chats, fetchImpl: deps.fetch, store, XLSX: deps.XLSX, parseWorkbook: deps.parseWorkbook });
+    // Har qanday holatda Telegram'ga 200 qaytaramiz: aks holda u shu xabarni qayta-qayta yuboradi
+    // va navbat (max_connections=1) to'xtab qoladi — keyingi fayllar ham kelmaydi.
+    try {
+      await handleUpdate(update, { token, chats, fetchImpl: deps.fetch, store, XLSX: deps.XLSX, parseWorkbook: deps.parseWorkbook });
+    } catch (e) {
+      console.error('Telegram update xatosi:', e && e.message);
+    }
     return json(200, { ok: true });
   }
 
