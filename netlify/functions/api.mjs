@@ -133,14 +133,14 @@ export async function handle(req, deps) {
       if (!/^-?\d{1,20}$/.test(id)) return json(400, { error: 'Chat ID noto‘g‘ri' });
       if (!body.allow && chats.includes(id)) return json(400, { error: 'Bu chat Netlify sozlamalarida (TELEGRAM_CHATS) — uni o‘sha yerdan olib tashlang' });
       await setAllowed(store, { id, title: cleanLabel(body.title || id), type: body.type || '' }, !!body.allow);
-      if (body.allow && token) {
+      if (body.allow && token && !id.startsWith('-')) { // faqat shaxsiy chatga; guruhga bot hech narsa yozmaydi
         const tg = telegramApi(token, deps.fetch);
-        await tg.call('sendMessage', { chat_id: id, text: '✅ Ruxsat berildi. Endi shu yerga tashlangan sklad Excel fayllari avtomatik saytga joylanadi.' }).catch(() => {});
+        await tg.call('sendMessage', { chat_id: id, text: '✅ Ruxsat berildi. Endi menga yuborgan sklad Excel fayllaringiz avtomatik saytga joylanadi.' }).catch(() => {});
       }
     }
 
     const lists = await listChats(store, chats);
-    const base = { available: true, configured: !!token, chats: lists.allowed.length, allowed: lists.allowed, pending: lists.pending, adminSet: !!adminPassword };
+    const base = { available: true, configured: !!token, chats: lists.allowed.length, allowed: lists.allowed, pending: lists.pending, blocked: lists.blocked, adminSet: !!adminPassword };
     if (!token) return json(200, base);
     const tg = telegramApi(token, deps.fetch);
     try {

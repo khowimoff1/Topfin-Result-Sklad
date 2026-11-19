@@ -76,10 +76,11 @@ function TelegramCard({ ensureAdmin, onChanged }) {
 
   const connect = () => adminAction('connect', '/api/telegram/setup', {}, 'Bot ulandi.');
   const allow = (c, on) =>
-    adminAction(`chat${c.id}`, '/api/telegram/chats', { id: c.id, title: c.title, type: c.type, allow: on }, on ? `“${c.title || c.id}” ga ruxsat berildi — bot u yerga xabar yozdi.` : `“${c.title || c.id}” olib tashlandi.`);
+    adminAction(`chat${c.id}`, '/api/telegram/chats', { id: c.id, title: c.title, type: c.type, allow: on }, on ? `“${c.title || c.id}” ga ruxsat berildi.` : `“${c.title || c.id}” bloklandi — undan fayl qabul qilinmaydi.`);
 
   const allowed = st.allowed || [];
   const pending = st.pending || [];
+  const blocked = st.blocked || [];
   const ok = st.configured && st.webhook && allowed.length > 0 && !st.error;
   const typeLabel = (t) => (t === 'private' ? 'shaxsiy' : t === 'channel' ? 'kanal' : t ? 'guruh' : '');
 
@@ -132,47 +133,75 @@ function TelegramCard({ ensureAdmin, onChanged }) {
                 {allowed.map((c) => (
                   <li key={c.id}>
                     <span>
-                      <b>{c.title || 'Nomsiz chat'}</b> <span className="muted small">{c.id}</span>
+                      <b>{c.title || 'Nomsiz chat'}</b>{' '}
+                      <span className="muted small">
+                        {typeLabel(c.type)}
+                        {c.auto && ' · avtomatik qo‘shilgan'}
+                        {c.left && ' · bot chiqarilgan'}
+                        {c.lastFile && ` · oxirgi: ${c.lastFile}`}
+                      </span>
                     </span>
                     {c.fixed ? (
                       <span className="muted small" title="Netlify sozlamalarida (TELEGRAM_CHATS)">
                         Netlify’da
                       </span>
                     ) : (
-                      <button className="btn btn-ghost btn-danger" onClick={() => allow(c, false)} disabled={!!busy}>
-                        🔒 Olib tashlash
+                      <button className="btn btn-ghost btn-danger" onClick={() => allow(c, false)} disabled={!!busy} title="Bu chatdan fayl qabul qilinmaydi">
+                        🔒 Bloklash
                       </button>
                     )}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="muted small">Hali yo‘q.</p>
+              <p className="muted small">
+                Hali yo‘q. Botni guruhga qo‘shing — guruh shu yerda avtomatik paydo bo‘ladi.{' '}
+                <button className="link" onClick={load}>
+                  Yangilash
+                </button>
+              </p>
             )}
           </div>
           <div>
-            <h4>Ruxsat kutayotgan chatlar</h4>
-            {pending.length ? (
-              <ul>
-                {pending.map((c) => (
-                  <li key={c.id}>
-                    <span>
-                      <b>{c.title || 'Nomsiz chat'}</b> <span className="muted small">{typeLabel(c.type)} · {fmtDateTime(c.lastAt)}</span>
-                      {c.lastFile && <span className="muted small"> · {c.lastFile}</span>}
-                    </span>
-                    <button className="btn btn-primary btn-sm" onClick={() => allow(c, true)} disabled={!!busy}>
-                      {busy === `chat${c.id}` ? '…' : '🔒 ✓ Ruxsat berish'}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
+            {pending.length > 0 && (
+              <>
+                <h4>Ruxsat so‘rayotgan shaxsiy chatlar</h4>
+                <ul>
+                  {pending.map((c) => (
+                    <li key={c.id}>
+                      <span>
+                        <b>{c.title || 'Nomsiz'}</b> <span className="muted small">{fmtDateTime(c.lastAt)}</span>
+                        {c.lastFile && <span className="muted small"> · {c.lastFile}</span>}
+                      </span>
+                      <button className="btn btn-primary btn-sm" onClick={() => allow(c, true)} disabled={!!busy}>
+                        {busy === `chat${c.id}` ? '…' : '🔒 ✓ Ruxsat berish'}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {blocked.length > 0 && (
+              <>
+                <h4 style={{ marginTop: pending.length ? 12 : 0 }}>Bloklangan chatlar</h4>
+                <ul>
+                  {blocked.map((c) => (
+                    <li key={c.id}>
+                      <span>
+                        <b>{c.title || 'Nomsiz chat'}</b> <span className="muted small">{typeLabel(c.type)}</span>
+                      </span>
+                      <button className="btn btn-ghost btn-sm" onClick={() => allow(c, true)} disabled={!!busy}>
+                        🔒 Qayta ruxsat
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {!pending.length && !blocked.length && (
               <p className="muted small">
-                Botni guruhga qo‘shing (yoki guruhda <code>/id</code> yozing) — guruh shu yerda paydo bo‘ladi. Ro‘yxatni yangilash uchun{' '}
-                <button className="link" onClick={load}>
-                  bu yerni bosing
-                </button>
-                .
+                Bot qo‘shilgan har bir guruhdan fayl <b>avtomatik</b> qabul qilinadi — parol va ruxsat shart emas. Keraksiz guruhni chapdagi ro‘yxatdan{' '}
+                <b>«Bloklash»</b> mumkin.
               </p>
             )}
           </div>
@@ -191,12 +220,12 @@ function TelegramCard({ ensureAdmin, onChanged }) {
           <li className={st.webhook ? 'done' : ''}>
             Shu yerda <b>«Botni ulash»</b> ni bosing.
           </li>
-          <li className={allowed.length ? 'done' : ''}>Botni guruhga qo‘shing va yuqorida guruh uchun «Ruxsat berish» ni bosing.</li>
+          <li className={allowed.length ? 'done' : ''}>Botni guruhga qo‘shing — guruh avtomatik ro‘yxatga tushadi.</li>
         </ol>
       )}
       <p className="muted small">
-        Guruhga tashlangan har bir sklad Excel fayli o‘sha skladni saytda yangilaydi va bot “✅ R104 Saribuloq saytda yangilandi” deb javob yozadi. Sklad fayli
-        bo‘lmagan boshqa Excel'larga bot guruhda javob bermaydi. Fayl 20 MB dan oshmasin.
+        Guruhga tashlangan har bir sklad Excel fayli o‘sha skladni saytda jimgina yangilaydi — bot guruhga hech narsa yozmaydi. Kim va qaysi guruhdan
+        yuborgani pastdagi jadvalda “Qayerdan” ustunida ko‘rinadi. Botga shaxsiy yozsangiz, u javob beradi. Fayl 20 MB dan oshmasin.
       </p>
     </Card>
   );
