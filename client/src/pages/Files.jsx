@@ -237,10 +237,10 @@ export default function Files({ db, reload }) {
       <span className="src src-tg" title="Telegram bot orqali">
         ✈ Telegram{w.uploader && w.uploader !== 'Telegram' ? ` · ${w.uploader}` : ''}
       </span>
-    ) : w.source === 'site' ? (
-      <span className="src">🖥 Sayt</span>
+    ) : w.source === 'folder' ? (
+      <span className="src" title="Kompyuterdagi data/ papkasidan">📁 Papka</span>
     ) : (
-      <span className="src">📁 Papka</span>
+      <span className="src">🖥 Sayt</span>
     );
 
   return (

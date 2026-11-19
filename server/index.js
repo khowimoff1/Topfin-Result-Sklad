@@ -47,7 +47,7 @@ function readEntry(f) {
         entry.fileSize = saved.size;
         entry.uploadedAt = saved.updatedAt;
       } else {
-        entry.parsed = parseWorkbook(XLSX, XLSX.readFile(full, { cellDates: false }), f);
+        entry.parsed = { ...parseWorkbook(XLSX, XLSX.readFile(full, { cellDates: false }), f), source: 'folder' };
       }
       console.log(`  o'qildi: ${f} (${Date.now() - t} ms)`);
     } catch (e) {
